@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 import random
 from sklearn.cluster import KMeans
 
-K = 10
+K = 4
 # The number of Cluster
 
 N = 100
 # The number of iterate times
 
-Distance_per_point = 10.0
+Distance_per_point = 1.0
 # set a point per airline
 
 future_num = 3
@@ -22,8 +22,6 @@ w1 = 2
 # the importance of distance between two points
 
 w2 = 100
-
-
 # the importance of airplanes number
 
 class Airplane:
@@ -44,7 +42,7 @@ class Airplane:
     Tcoord = np.zeros(2, dtype=np.float_, order='C')
     # Coord from && to
 
-    data = np.zeros(17, dtype=np.float_, order='C')
+    data = np.zeros(34, dtype=np.float_, order='C')
 
     def __init__(self, tlist):
         self.name = tlist[0]
@@ -81,23 +79,18 @@ class Point:
         print(self.name, self.coord, self.belongsTo, self.data, self.color)
 
     def mkData(self, left, right):
-        self.cData = np.zeros(17, dtype=np.float_)
+        self.cData = np.zeros(36, dtype=np.float_)
         self.cData[:2] = self.coord * w1
-        self.cData[2 + left:2 + right] = self.data[left:right]
+        self.cData[2+left*2:4+right*2] = self.data[left*2:2+right*2]
+        for index,i in enumerate(self.cData):
+            if index > 1 and index % 2 == 1:
+                self.cData[index] *= w2
 
 
 airsList = []  # type: list[Airplane]
 pointList = []  # type: list[point]
 PointN = 0
 ansList = []
-
-
-def randomcolor():
-    colorArr = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-    color = ""
-    for i in range(6):
-        color += colorArr[random.randint(0, 14)]
-    return "#" + color
 
 
 # read data from file
@@ -138,7 +131,7 @@ def mkPoint():
 
 
 def mkPic(cList, result):
-    plt.scatter(x=cList[:, 0], y=cList[:, 1], c=result,s=10)
+    plt.scatter(x=cList[:, 0], y=cList[:, 1], c=result, s=10)
     plt.show()
 
 
@@ -146,17 +139,17 @@ def k_means(left=0, right=17):
     cList = []
     pList = []
     i: Point
-    for i in pointList:
-        i.mkData(left, right)
+    for index, i in enumerate(pointList):
+        pointList[index].mkData(left, right)
         pList.append(i.parent)
-        cList.append(i.cData)
+        cList.append(pointList[index].cData)
     cList = np.asarray(cList, dtype=np.float_)
     result = KMeans(n_clusters=K, max_iter=N).fit_predict(cList)
-    #print(result)
+    # print(result)
     a = []
     for i in range(K):
         a.append([])
-    for index,j in enumerate(result):
+    for index, j in enumerate(result):
         a[j].append(np.sum(np.asarray(cList[index][2:])))
 
     c = []
@@ -170,35 +163,63 @@ def k_means(left=0, right=17):
         sum += tnum - i;
 
     slist = []
-    for index,i in result:
+    dlist = []
+    for index, i in enumerate(result):
         if i == tpos:
             slist.append(index)
+            dlist.append(pointList[index])
 
-    return sum,slist
+    return sum, slist, dlist
+
 
 SUM = []
 RESULT = []
+DATA = []
+
 
 def main_process():
     for l in range(17):
-        for r in [l,16]:
-            tSum,tResult = k_means(l,r)
+        for r in range(l, 17):
+            tSum, tResult, tDATA = k_means(l, r)
             SUM.append(tSum)
             RESULT.append(RESULT)
+            DATA.append(tDATA)
 
-def query(op,len = 1,left = 6,right = 23):
-    if(op == 1):
-        left = left - 6
-        right = right - 7
-        index = 0
+
+def query(op=1, len=1, left=6, right=7):
+
+    ans = 0
+    ansl = 0
+    ansr = 0
+    left = left - 6
+    right = right - 7
+    index = 0
+    if op == 1:  # [L,R]
         for l in range(17):
-            for r in [l,16]:
-                if l == left && r == right:
+            for r in range(l, 17):
+                if l == left and r == right:
+                    ans = index
+                index += 1
 
-
+    if op == 2:
+        tsum = 0
+        for l in range(17):
+            for r in range(l, 17):
+                if r - l + 1 == len:
+                    tsum = max(tsum,SUM[index])
+                    if tsum == SUM[index]:
+                        ans = index
+                        ansl = l
+                        ansr = r
+                index += 1
+    return ans,ansl,ansr
 
 
 readFile()
 mkPoint()
 main_process()
-query()
+ans,l,r = query(op=2,len=17)
+
+print(l+6,r+6)
+for i in DATA[ans]:
+    print(i.name + ' ' + str(i.coord))
