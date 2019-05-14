@@ -1,21 +1,30 @@
+from typing import List, Any
+
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
 import random
 from sklearn.cluster import KMeans
-ClusterNum = 5
 
-Distance_per_point = 1.0
+K = 10
+# The number of Cluster
+
+N = 100
+# The number of iterate times
+
+Distance_per_point = 10.0
 # set a point per airline
 
 future_num = 3
 # the number of futures' number
 
-importanceOfDistance = 2
+w1 = 2
 # the importance of distance between two points
 
+w2 = 100
 
-colorList = []
+
+# the importance of airplanes number
 
 class Airplane:
     name = "null"
@@ -23,7 +32,7 @@ class Airplane:
     type = 0
     # the type  1 for airlines  2 for airport
 
-    belong = np.zeros(ClusterNum, dtype=np.int_, order='C')
+    belong = np.zeros(K, dtype=np.int_, order='C')
     # the number belongs to every cluster
     # would be 00001000 e.t.c for point
     # would be 10204005 e.t.c for airlines
@@ -60,34 +69,35 @@ class Airplane:
 
 class Point:
 
-
     def __init__(self, air: Airplane, Coord=np.zeros(2, dtype=np.float_), parent=0):
         self.data = air.data
         self.name = air.name
+        self.coord = np.zeros(2, dtype=np.float_)
         self.coord = Coord
         self.parent = parent
         self.type = air.type
-        self.color = colorList[parent]
 
     def display(self):
         print(self.name, self.coord, self.belongsTo, self.data, self.color)
 
-    def mkData(self,rank):
-        self.cData = np.zeros(3,dtype=np.float_)
-        self.cData[:2] = self.coord * importanceOfDistance
-        self.cData[2:] = self.data[rank]
+    def mkData(self, left, right):
+        self.cData = np.zeros(17, dtype=np.float_)
+        self.cData[:2] = self.coord * w1
+        self.cData[2 + left:2 + right] = self.data[left:right]
+
 
 airsList = []  # type: list[Airplane]
-pointList = [] # type: list[point]
+pointList = []  # type: list[point]
 PointN = 0
+ansList = []
 
 
 def randomcolor():
-    colorArr = ['1','2','3','4','5','6','7','8','9','A','B','C','D','E','F']
+    colorArr = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
     color = ""
     for i in range(6):
-        color += colorArr[random.randint(0,14)]
-    return "#"+color
+        color += colorArr[random.randint(0, 14)]
+    return "#" + color
 
 
 # read data from file
@@ -97,8 +107,7 @@ def readFile():
     for i in FileContex:
         tlist = i.split(' ')
         airsList.append(Airplane(tlist))
-    for i in range(20):
-        colorList.append(randomcolor())
+
 
 # calc Euclidean Distance for vector
 def calcDis(Veca, Vecb):
@@ -111,8 +120,8 @@ def mkPoint():
     global airsList
     for index, i in enumerate(airsList):
         if i.type == 0:
-            pointList.append(Point(i, parent=index,Coord=i.Fcoord))
-            PointN +=1
+            pointList.append(Point(i, parent=index, Coord=i.Fcoord))
+            PointN += 1
         else:
             From = i.Fcoord
             To = i.Tcoord
@@ -128,69 +137,68 @@ def mkPoint():
             PointN += 1
 
 
-def drawOrigin(flag:bool):
-    if(flag == False):return
-    plt.xlabel('longitude')
-    plt.ylabel('latitude')
-    xlist = []
-    ylist = []
-    clist = []
-    slist = []
-    i:Point
-    for i in pointList:
-        xlist.append(i.coord[0])
-        ylist.append(i.coord[1])
-        clist.append(i.color)
-        if(i.type == 1):
-            slist.append(1)
-        else:
-            slist.append(15)
-    #print(xlist,'\n',ylist,'\n',clist)
-    fig = plt.figure()
-    ax1 = fig.add_subplot(111)
-    ax1.scatter(xlist,ylist,c=clist,s=slist,marker='o')
+def mkPic(cList, result):
+    plt.scatter(x=cList[:, 0], y=cList[:, 1], c=result,s=10)
     plt.show()
 
 
-def k_means(K = ClusterNum,iterNum = 10,ShowPic = True,UpdateCluster = False):#The number of Cluster,The number of iter calc times
-    dataList = []
+def k_means(left=0, right=17):
+    cList = []
+    pList = []
     i: Point
     for i in pointList:
-        i.mkData(0)
-        dataList.append(i.cData)
-    dataList = np.array(dataList,dtype=np.float_)
-    colorL = KMeans(n_clusters=K,max_iter=iterNum).fit_predict(dataList)
-    #draw pic
+        i.mkData(left, right)
+        pList.append(i.parent)
+        cList.append(i.cData)
+    cList = np.asarray(cList, dtype=np.float_)
+    result = KMeans(n_clusters=K, max_iter=N).fit_predict(cList)
+    #print(result)
+    a = []
+    for i in range(K):
+        a.append([])
+    for index,j in enumerate(result):
+        a[j].append(np.sum(np.asarray(cList[index][2:])))
 
-    if UpdateCluster == True:
+    c = []
+    for i in a:
+        c.append(np.mean(np.asarray(i)))
 
-        newList = np.zeros([16,K],dtype=np.int_)
-        for index,i in enumerate(pointList):
-            if i.type == 1:
-                newList[i.parent][colorL[index]] += 1
+    tpos = np.argmax(np.asarray(c))
+    tnum = c[tpos]
+    sum = 0
+    for i in c:
+        sum += tnum - i;
 
-        tdic = np.zeros(16,dtype=np.int_)
+    slist = []
+    for index,i in result:
+        if i == tpos:
+            slist.append(index)
 
-        for index,i in enumerate(airsList):
-            if i.type == 1:
-                tdic[index] = np.argmax(newList[index])
+    return sum,slist
 
-        for index,i in enumerate(pointList):
-            if i.type == 1:
-                colorL[index] = tdic[i.parent]
+SUM = []
+RESULT = []
 
-    if ShowPic == True:
-        ax = plt.subplot(111, projection='3d')
-        ax.scatter(dataList[:,0],dataList[:,1],dataList[:,2],c=colorL)
-        ax.set_xlabel('longitude')
-        ax.set_ylabel('latitude')
-        ax.set_zlabel('Data')
-        plt.show()
+def main_process():
+    for l in range(17):
+        for r in [l,16]:
+            tSum,tResult = k_means(l,r)
+            SUM.append(tSum)
+            RESULT.append(RESULT)
+
+def query(op,len = 1,left = 6,right = 23):
+    if(op == 1):
+        left = left - 6
+        right = right - 7
+        index = 0
+        for l in range(17):
+            for r in [l,16]:
+                if l == left && r == right:
+
+
 
 
 readFile()
 mkPoint()
-#disPlayList(pointList)
-drawOrigin(False)
-k_means(K=4,ShowPic=True,UpdateCluster=True)
-#plt.show()
+main_process()
+query()
