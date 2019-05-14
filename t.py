@@ -6,19 +6,19 @@ import matplotlib.pyplot as plt
 import random
 from sklearn.cluster import KMeans
 
-K = 4
+K = 50
 # The number of Cluster
 
-N = 100
+N = 200
 # The number of iterate times
 
-Distance_per_point = 1.0
+Distance_per_point = 0.5
 # set a point per airline
 
 future_num = 3
 # the number of futures' number
 
-w1 = 2
+w1 = 1.5
 # the importance of distance between two points
 
 w2 = 100
@@ -178,21 +178,23 @@ DATA = []
 
 
 def main_process():
+    index = 0
     for l in range(17):
         for r in range(l, 17):
             tSum, tResult, tDATA = k_means(l, r)
             SUM.append(tSum)
-            RESULT.append(RESULT)
+            RESULT.append(tResult)
             DATA.append(tDATA)
+            index += 1
 
 
 def query(op=1, len=1, left=6, right=7):
 
     ans = 0
-    ansl = 0
-    ansr = 0
     left = left - 6
     right = right - 7
+    ansl = left
+    ansr = right
     index = 0
     if op == 1:  # [L,R]
         for l in range(17):
@@ -206,20 +208,21 @@ def query(op=1, len=1, left=6, right=7):
         for l in range(17):
             for r in range(l, 17):
                 if r - l + 1 == len:
-                    tsum = max(tsum,SUM[index])
-                    if tsum == SUM[index]:
+                    if tsum < SUM[index]:
+                        tsum = SUM[index]
                         ans = index
                         ansl = l
                         ansr = r
                 index += 1
-    return ans,ansl,ansr
-
+    return ans,ansl+6,ansr+7
 
 readFile()
 mkPoint()
 main_process()
-ans,l,r = query(op=2,len=17)
+ans,l,r = query(op=1,left=15,right=16,len=7)
 
-print(l+6,r+6)
+print('The number of POINTs   is:',str(PointN))
+print('The number of CLUSTERs is:',str(K))
+print(l,r)
 for i in DATA[ans]:
     print(i.name + ' ' + str(i.coord))
