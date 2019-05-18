@@ -6,22 +6,22 @@ import matplotlib.pyplot as plt
 import random
 from sklearn.cluster import KMeans
 
-K = 50
+fileName = 't1.txt'
+
+K = 35
 # The number of Cluster
 
-N = 200
+N = 300
 # The number of iterate times
 
-Distance_per_point = 0.5
+Distance_per_point = 5
 # set a point per airline
 
-future_num = 3
-# the number of futures' number
 
-w1 = 1.5
+w1 = 80
 # the importance of distance between two points
 
-w2 = 100
+w2 = 70
 # the importance of airplanes number
 
 class Airplane:
@@ -95,7 +95,7 @@ ansList = []
 
 # read data from file
 def readFile():
-    file = open('t.txt')
+    file = open(fileName)
     FileContex = file.readlines()
     for i in FileContex:
         tlist = i.split(' ')
@@ -130,9 +130,46 @@ def mkPoint():
             PointN += 1
 
 
-def mkPic(cList, result):
-    plt.scatter(x=cList[:, 0], y=cList[:, 1], c=result, s=10)
-    plt.show()
+def mkPic(l,r,ans):
+    ax = plt.subplot(1, 1, 1, projection='3d')
+    ax.set_xlabel('longitude')
+    ax.set_ylabel('latitude')
+    ax.set_zlabel('data')
+    clist = []
+    dlist = []
+    for i in DATA[ans]:
+        clist.append(i.coord.tolist())
+
+    rlist = []
+    c = []
+    nameL = []
+    sum = 0
+    p:Point
+    for i in pointList:
+        i.mkData(l - 6, r - 7)
+        t = np.sum(i.cData[2:])
+        if i.coord.tolist() in clist:
+            c.append(1)
+            if sum < t:
+                sum = t
+                p = i
+        else:
+            c.append(0)
+        rlist.append(i.coord)
+        dlist.append(t)
+        nameL.append(i.name)
+
+    rlist = np.asarray(rlist,dtype=np.float_)
+    ax.scatter(rlist[:,0], rlist[:,1],dlist,c=c)
+    tlist = []
+    for index,i in enumerate(nameL):
+        if not i in tlist:
+            tlist.append(i)
+            ax.text(rlist[index][0],rlist[index][1],dlist[index],i)
+
+    print('CHOSEN: ')
+    print(p.name + ' ' + str(p.coord))
+
 
 
 def k_means(left=0, right=17):
@@ -153,13 +190,15 @@ def k_means(left=0, right=17):
         a[j].append(np.sum(np.asarray(cList[index][2:])))
 
     c = []
+    cc = []
     for i in a:
         c.append(np.mean(np.asarray(i)))
+        cc.append(np.mean(np.asarray(i)))
 
     tpos = np.argmax(np.asarray(c))
-    tnum = c[tpos]
+    tnum = cc[tpos]
     sum = 0
-    for i in c:
+    for i in cc:
         sum += tnum - i;
 
     slist = []
@@ -186,6 +225,7 @@ def main_process():
             RESULT.append(tResult)
             DATA.append(tDATA)
             index += 1
+            print(float(index / 153 * 100), '% has done')
 
 
 def query(op=1, len=1, left=6, right=7):
@@ -207,7 +247,7 @@ def query(op=1, len=1, left=6, right=7):
         tsum = 0
         for l in range(17):
             for r in range(l, 17):
-                if r - l + 1 == len:
+                if r - l + 1 <= len:
                     if tsum < SUM[index]:
                         tsum = SUM[index]
                         ans = index
@@ -219,10 +259,21 @@ def query(op=1, len=1, left=6, right=7):
 readFile()
 mkPoint()
 main_process()
-ans,l,r = query(op=1,left=15,right=16,len=7)
-
-print('The number of POINTs   is:',str(PointN))
-print('The number of CLUSTERs is:',str(K))
-print(l,r)
-for i in DATA[ans]:
-    print(i.name + ' ' + str(i.coord))
+print('The number of POINTs   is:', str(PointN))
+print('The number of CLUSTERs is:', str(K))
+while(True):
+    op = int(input())
+    tl = 0
+    tr = 0
+    tlen = 0
+    if(op == 1):
+        tl = int(input())
+        tr = int(input())
+    else:
+        tlen = int(input())
+    ans,l,r = query(op=op,left=tl,right=tr,len=tlen)
+    mkPic(l,r,ans)
+    print(l,r)
+    for i in DATA[ans]:
+        print(i.name + ' ' + str(i.coord))
+    plt.show()
