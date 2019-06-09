@@ -4,16 +4,8 @@ import random
 import numpy as np
 import global_var as gl
 
-def is_valid(X,Y, mmp):
+def is_valid(X,Y,mmp):
     n = len(X)
-    if len(Y) != n:
-        return False
-    for i in range(n):
-        x,y = X[i],Y[i]
-        if x < 0 or x >= gl.col or y < 0 or y >= gl.row:
-           return False
-        #if mmp[y][x] == 0:
-        #    return False
     for i in range(n):
         ok = False
         for j in range(n):

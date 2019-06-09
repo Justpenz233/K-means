@@ -16,19 +16,25 @@ import numpy as np
 import global_var as gl
 import Solution as SLT
 
-mmp=None
-
-def get_init(mp, grid_len):
-    global mmp
-    mmp = mp
+def get_init(mp, grid_len,is_first):
+    if not is_first:
+        return
+    gl.mmp = mp
     gl.row = mp.shape[0]
     gl.col = mp[0].shape[0]
     print(gl.row)
     print(gl.col)
     gl.radius /= grid_len
     gl.max_flight_radius /= grid_len
-    gl.x_chro_point_len = int(math.ceil(math.log2(gl.col)))
-    gl.y_chro_point_len = int(math.ceil(math.log2(gl.row)))
+    for r in range(gl.row):
+        for c in range (gl.col):
+            if (mp[r][c] == 1):
+                gl.px_list.append(c)
+                gl.py_list.append(r)
+    gl.p_valid_cnt = len(gl.px_list)
+
+    gl.chro_point_len = int(math.ceil(math.log2(gl.p_valid_cnt)))
+    gl.chro_total_len = gl.chro_point_len * gl.point_cnt;
 
 
 def init_random_one_individual():
@@ -36,26 +42,19 @@ def init_random_one_individual():
     初始随机化一个个体的染色体chromosome
     :return:
     '''
-    X = []
-    cnt = gl.point_cnt*gl.x_chro_point_len
-    for i in range(cnt):
-        X.append(random.randint(0,1))
-    Y = []
-    cnt = gl.point_cnt * gl.y_chro_point_len
-    for i in range(cnt):
-        Y.append(random.randint(0,1))
-    individual = (X, Y)
-    return individual
+    chromosome = []
+    for i in range(gl.chro_total_len):
+        chromosome.append(random.randint(0,1))
+    return chromosome
 
 
 def init_random_population(want_pop_size):
-    global mmp
     population = list()
     for i in range(want_pop_size):
         while True:
             individual = init_random_one_individual()
-            solution = individual_to_solution(individual)
-            if True == SLT.is_valid(solution[0],solution[1],mmp):
+            X,Y = individual_to_solution(individual)
+            if True == SLT.is_valid(X,Y,gl.mmp):
                 break
         population.append(individual)
     return population
@@ -66,59 +65,37 @@ def individual_to_solution(individual):
     :return:
     '''
     X = list()
-    for i in range(gl.point_cnt):
-        t = 0
-        for j in range(i * gl.x_chro_point_len, (i + 1) * gl.x_chro_point_len):
-            t = t * 2 + individual[0][j]
-        X.append(t%317) # gl.col
     Y = list()
-    for i in range(gl.point_cnt):
-        t = 0
-        for j in range(i * gl.y_chro_point_len, (i + 1) * gl.y_chro_point_len):
-            t = t * 2 + individual[1][j]
-        Y.append(t%392) #gl.row
-    solution = (X, Y)
-    return solution
+    t = 0
+    for i in range(gl.chro_total_len):
+        t = t*2+individual[i]
+        if ((i+1)%gl.chro_point_len == 0):
+            t %= gl.p_valid_cnt
+            x,y = gl.px_list[t],gl.py_list[t]
+            X.append(x)
+            Y.append(y)
+            # reset 0
+            # t = 0
+    return X,Y
 
 
-def crossover(pplt):
+def crossover(pop):
     '''
     相邻个体以一定概率杂交
     :param pplt:这一代的种群
     :param [out]
     :return:
     '''
-    sz = len(pplt)
-    for i in range(sz):
+    num = len(pop)
+    for i in range(num):
         male = 0
         # 0-1的随机数落于[0,cross_p)即杂交概率为cross_p
-        NX = []
-        NX1 = []
-        NY = []
-        NY1 = []
         if (random.random() < gl.cross_p):
             # 与相邻的对象杂交
-            male = (i + 1) % sz
+            male = (i + 1) % num
             # 随机杂交点数目及杂交点分布
-            cnt, cross = random_cross_solution(gl.min_cross_point_cnt, gl.max_cross_point_cnt, gl.col)
-            NX,NX1 = produce_new_list(pplt[i][0], pplt[male][0], cnt, cross)
-            cnt, cross = random_cross_solution(gl.min_cross_point_cnt, gl.max_cross_point_cnt, gl.row)
-            NY,NY1 = produce_new_list(pplt[i][1], pplt[male][1], cnt, cross)
-        pplt[i] = (NX,NY)
-        pplt[male] = (NX1,NY1)
-
-    '''for i in range(sz):
-        t_cnt = random.randint(1,4)
-        for k in range(t_cnt):
-            male = random.randint(0,sz-1)
-            if (random.random() < gl.cross_p):
-                # 随机杂交点数目及杂交点分布
-                cnt, cross = random_cross_solution(gl.min_cross_point_cnt, gl.max_cross_point_cnt, gl.col)
-                NX = produce_new_list(pplt[i][0], pplt[male][0], cnt, cross)
-                cnt, cross = random_cross_solution(gl.min_cross_point_cnt, gl.max_cross_point_cnt, gl.row)
-                NY = produce_new_list(pplt[i][1], pplt[male][1], cnt, cross)
-                next_generation.append((NX, NY))
-    '''
+            cnt, cross = random_cross_solution(gl.min_cross_point_cnt, gl.max_cross_point_cnt, gl.chro_total_len)
+            produce_new_list(pop[i], pop[male], cnt, cross)
 
 
 def get_random_list_without_repetition(n, m):
@@ -149,33 +126,25 @@ def random_cross_solution(a, b, sz):
 
 def produce_new_list(dad, mom, cnt, cross):
     l = 0
-    ans = []
-    ans1 = []
-    for i, r in enumerate(cross):
-        if i%2 == 0:
-            ans.extend(dad[l:r])
-            ans1.extend(mom[l:r])
-        else:
-            ans.extend(mom[l:r])
-            ans1.extend(dad[l:r])
-    return ans,ans1
+    for i,r in enumerate(cross):
+        if i%2 == 1:
+            for j in range(l,r):
+                t = dad[j]
+                dad[j]=mom[j]
+                mom[j]=t
 
-def mutation(next_generation):
-    global mmp
+def mutation(pop):
     '''
     基因突变
     每个新生的个体，以一定概率基因突变（一个位产生变化）
     :return: 
     '''
-    sz = len(next_generation)
+    num = len(pop)
     ans = []
-    for i in range(sz):
+    for i in range(num):
         if (random.random() < gl.mutation_p):
-            j = random.randint(0, gl.col-1)
-            next_generation[i][0][j] ^= 1
-            j = random.randint(0, gl.row - 1)
-            next_generation[i][1][j] ^= 1
-        solution = individual_to_solution(individual=next_generation[i])
-        if True == SLT.is_valid(X=solution[0], Y=solution[1], mmp=mmp):
-            ans.append(solution)
-    return ans
+            j = random.randint(0, gl.chro_total_len)
+            pop[i][j] ^= 1
+        X,Y = individual_to_solution(individual=pop[i])
+        #if True == SLT.is_valid(X=X, Y=Y, mmp=mmp):
+        #    ans.append()
